@@ -1,0 +1,12 @@
+flowchart LR
+    U["User enters topic (main.py)"] --> R["Research Agent<br/>Tavily, fallback DuckDuckGo"]
+    R -->|"3+ results"| S["Summarizer Agent<br/>exactly 5 points + links"]
+    R -->|"empty topic / fewer than 3 results"| E["Error End<br/>show errors"]
+    S --> N["Notifier Agent<br/>builds email text"]
+    S -->|"summary failed"| E
+    N --> F[("output/notification_TIMESTAMP.txt")]
+    N -->|"file write failed"| E
+    ST{{"Shared NewsState<br/>topic, research_results, summary_points,<br/>sources, email_text, output_file, errors"}}
+    R <-.-> ST
+    S <-.-> ST
+    N <-.-> ST
