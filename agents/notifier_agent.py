@@ -1,89 +1,103 @@
 """
 Agent 3 - Notifier Agent
 
-Receives the summary produced by the Summarizer Agent, turns it into a
-professional email notification, and saves it to notifications.txt.
+Receives the 5 summary points + sources from the Summarizer Agent, turns them
+into a professional email notification, and saves it to
+output/notification_<TIMESTAMP>.txt.
 
-Designed to be used as a LangGraph node: it takes the shared state dict
-(expects "topic" and "summary") and returns {"email": ...}.
+LangGraph node: reads "topic", "summary_points", "sources";
+returns {"email_text", "output_file"} (or {"errors": [...]}).
 """
-
+import logging
 from datetime import datetime
-from main import llm
-import datetime
+from pathlib import Path
+
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+
+from llm import llm
 from state import NewsState
 
-NOTIFICATIONS_FILE = "notifications.txt" + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+log = logging.getLogger("notifier_agent")
+
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 
 prompt = ChatPromptTemplate.from_messages([
     (
         "system",
         "You are a corporate communications assistant. Write a short, professional "
         "email to all employees sharing the latest developments on a topic. "
-        "Include a 'Subject:' line first, a greeting, the key points as a bulleted "
-        "list, the source links, and a polite sign-off from 'AI News Assistant'. "
-        "Use only the information given in the summary.",
+        "Start with a 'Subject:' line, then a greeting, the key points as a bulleted "
+        "list, a 'Sources:' section listing every source link, and a polite sign-off "
+        "from 'AI News Assistant'. Use only the information given. "
+        "Return plain text only (no markdown code fences).",
     ),
-    ("human", "Topic: {topic}\n\nSummary:\n{summary}"),
+    ("human", "Topic: {topic}\n\nKey points:\n{points}\n\nSources:\n{sources}"),
 ])
 
 chain = prompt | llm | StrOutputParser()
 
 
-def fallback_email(topic: str, summary: str) -> str:
+def _fallback_email(topic: str, points: str, sources: str) -> str:
     """Plain template used if the LLM call fails."""
     return (
         f"Subject: Latest Update on {topic}\n\n"
         "Hello Team,\n\n"
         f"Here is a quick summary of the latest developments on {topic}:\n\n"
-        f"{summary}\n\n"
+        f"{points}\n\n"
+        f"Sources:\n{sources}\n\n"
         "Best regards,\nAI News Assistant"
     )
 
 
-def save_notification(email: str) -> None:
-    """Append the email to notifications.txt with a timestamp."""
-    with open(NOTIFICATIONS_FILE, "a", encoding="utf-8") as f:
-        f.write(f"===== {datetime.now():%Y-%m-%d %H:%M:%S} =====\n")
-        f.write(email.strip() + "\n\n")
+def _save(email: str) -> Path:
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    path = OUTPUT_DIR / f"notification_{datetime.now():%Y%m%d_%H%M%S}.txt"
+    path.write_text(email.strip() + "\n", encoding="utf-8")
+    return path
 
 
 def notifier_node(state: NewsState) -> dict:
     """LangGraph node: summary in -> email out (and saved to file)."""
     topic = state.get("topic") or "Technology"
-    summary = state.get("summary")
+    summary_points = state.get("summary_points") or []
+    sources = state.get("sources") or []
 
-    # Handle missing information
-    if not summary:
-        print("[Notifier] No summary received - skipping email.")
-        return {"email": "", "error": "Notifier: summary is missing"}
+    if not summary_points:
+        return {"errors": ["Notifier: summary is missing - email not generated."]}
 
-    print("[Notifier] Generating email notification...")
+    points = "\n".join(f"- {p}" for p in summary_points)
+    links = "\n".join(f"- {u}" for u in sources) or "- (no sources)"
+
+    log.info("Generating email notification...")
     try:
-        email = chain.invoke({"topic": topic, "summary": summary})
+        email = chain.invoke({"topic": topic, "points": points, "sources": links}).strip()
+        if not email:
+            raise ValueError("empty LLM response")
     except Exception as e:
-        print(f"[Notifier] LLM failed ({e}); using template email.")
-        email = fallback_email(topic, summary)
+        log.warning("LLM failed (%s); using template email.", e)
+        email = _fallback_email(topic, points, links)
 
-    save_notification(email)
-    print(f"[Notifier] Email saved to {NOTIFICATIONS_FILE}")
-    return {"email": email}
+    try:
+        path = _save(email)
+    except OSError as e:
+        return {"email_text": email, "errors": [f"Notifier: could not write file: {e}"]}
+
+    log.info("Email saved to %s", path)
+    return {"email_text": email, "output_file": str(path)}
 
 
 if __name__ == "__main__":
-    # Quick standalone test with a sample summary
-    sample_state = {
+    logging.basicConfig(level=logging.INFO)
+    out = notifier_node({
         "topic": "Generative AI",
-        "summary": (
-            "1. New multimodal models released.\n"
-            "2. Companies adopting AI agents.\n"
-            "3. Open-source models improving fast.\n"
-            "4. New AI regulations proposed.\n"
-            "5. Lower inference costs.\n"
-            "Sources: https://example.com/genai-news"
-        ),
-    }
-    result = notifier_agent(sample_state)
-    print("\n" + result["email"])
+        "summary_points": [
+            "New multimodal models released.",
+            "Companies adopting AI agents.",
+            "Open-source models improving fast.",
+            "New AI regulations proposed.",
+            "Lower inference costs.",
+        ],
+        "sources": ["https://example.com/genai-news"],
+    })
+    print(out.get("email_text"), "\n->", out.get("output_file"), out.get("errors"))

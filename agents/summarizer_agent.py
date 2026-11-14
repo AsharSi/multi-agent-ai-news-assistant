@@ -2,7 +2,7 @@ import json
 import logging
 import re
 from state import NewsState
-from main import llm
+from llm import llm
 
 logger = logging.getLogger("summarizer_agent")
 
