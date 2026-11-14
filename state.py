@@ -2,7 +2,6 @@
 import operator
 from typing import Annotated, TypedDict
 
-
 class NewsState(TypedDict, total=False):
     topic: str
     research_results: list[dict]   # [{title, url, content}]

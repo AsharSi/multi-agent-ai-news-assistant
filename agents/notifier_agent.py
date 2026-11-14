@@ -13,6 +13,7 @@ from main import llm
 import datetime
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from state import NewsState
 
 NOTIFICATIONS_FILE = "notifications.txt" + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -49,7 +50,7 @@ def save_notification(email: str) -> None:
         f.write(email.strip() + "\n\n")
 
 
-def notifier_agent(state: dict) -> dict:
+def notifier_node(state: NewsState) -> dict:
     """LangGraph node: summary in -> email out (and saved to file)."""
     topic = state.get("topic") or "Technology"
     summary = state.get("summary")

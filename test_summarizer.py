@@ -1,5 +1,5 @@
 import json
-from summarizer_agent import summarizer_node
+from agents.summarizer_agent import summarizer_node
 # Sample output from Member 1's Research Agent
 test_state = {
    "topic": "Latest developments in Generative AI",
