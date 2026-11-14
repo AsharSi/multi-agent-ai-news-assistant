@@ -1,6 +1,7 @@
-langgraph>=0.2
-langchain>=0.3
+langgraph
 langchain-tavily>=0.1
 ddgs>=9.0
-python-dotenv>=1.0
-# Member 2 adds the LLM package (e.g. langchain-openai / langchain-anthropic)
+langchain
+langchain-core
+langchain-openai
+python-dotenv

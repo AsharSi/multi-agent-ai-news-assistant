@@ -11,6 +11,7 @@ Never raises: every failure is written to `errors`.
 import logging
 import os
 from urllib.parse import urlparse
+from langchain_tavily import TavilySearch
 
 from dotenv import load_dotenv
 
@@ -30,7 +31,6 @@ MAX_TOPIC_CHARS = 200
 def _search_tavily(query: str) -> list[dict]:
     if not os.getenv("TAVILY_API_KEY"):
         raise RuntimeError("TAVILY_API_KEY is not set")
-    from langchain_tavily import TavilySearch
 
     tool = TavilySearch(max_results=MAX_RESULTS)
     resp = tool.invoke({"query": query})
