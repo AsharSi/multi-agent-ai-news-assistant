@@ -12,19 +12,16 @@ import logging
 import os
 from urllib.parse import urlparse
 from langchain_tavily import TavilySearch
-
 from dotenv import load_dotenv
-
 from state import NewsState
 
 load_dotenv()
 log = logging.getLogger("research_agent")
 
 MIN_RESULTS = 3
-MAX_RESULTS = int(os.getenv("RESEARCH_MAX_RESULTS", "6"))
-MAX_CONTENT_CHARS = 1500     # keeps the summarizer prompt small
+MAX_RESULTS = 6
+MAX_CONTENT_CHARS = 1500
 MAX_TOPIC_CHARS = 200
-
 
 # ---------- providers (each returns a list of {title, url, content}) ----------
 

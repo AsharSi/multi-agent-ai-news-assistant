@@ -8,25 +8,13 @@ Designed to be used as a LangGraph node: it takes the shared state dict
 (expects "topic" and "summary") and returns {"email": ...}.
 """
 
-import os
 from datetime import datetime
-
-from dotenv import load_dotenv
+from main import llm
+import datetime
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 
-load_dotenv()  # reads OPENROUTER_API_KEY (and optional OPENROUTER_MODEL) from .env
-
-NOTIFICATIONS_FILE = "notifications.txt"
-
-# OpenRouter exposes an OpenAI-compatible API, so ChatOpenAI works with a custom base_url.
-llm = ChatOpenAI(
-    model=os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free"),
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-    base_url="https://openrouter.ai/api/v1",
-    max_tokens=2000,
-)
+NOTIFICATIONS_FILE = "notifications.txt" + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 prompt = ChatPromptTemplate.from_messages([
     (
